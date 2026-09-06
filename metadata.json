@@ -1,0 +1,6 @@
+{
+  "name": "Bhoomi Setu — Land Acquisition Register",
+  "description": "Public register and map of land parcels under acquisition, from survey to possession.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
