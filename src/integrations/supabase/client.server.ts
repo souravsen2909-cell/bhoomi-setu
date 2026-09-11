@@ -4,6 +4,7 @@
 // for preview and development.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { normalizeSupabaseUrl } from "./url";
 import {
   MOCK_AFFECTED_FAMILIES,
   MOCK_AWARDS,
@@ -203,7 +204,8 @@ function createMockSupabaseAdmin() {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
+  const rawUrl = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
+  const SUPABASE_URL = normalizeSupabaseUrl(rawUrl);
   const SUPABASE_SERVICE_ROLE_KEY =
     process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
     process.env["SUPABASE_PUBLISHABLE_KEY"] ||
@@ -219,7 +221,7 @@ function createSupabaseAdminClient() {
     return createMockSupabaseAdmin() as any;
   }
 
-  return createClient<Database>(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!, {
     global: {
       fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY!),
     },

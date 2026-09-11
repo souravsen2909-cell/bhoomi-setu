@@ -264,12 +264,15 @@ export const getPossessionNoticePreview = createServerFn({ method: "GET" })
       .eq("parcel_id", data.parcelId);
 
     const owners = (ownerships ?? [])
-      .map((o) => (o.landowners ?? null) as unknown as {
-        id: string;
-        full_name: string;
-        contact_phone: string | null;
-        user_id: string | null;
-      } | null)
+      .map(
+        (o) =>
+          (o.landowners ?? null) as unknown as {
+            id: string;
+            full_name: string;
+            contact_phone: string | null;
+            user_id: string | null;
+          } | null,
+      )
       .filter((o): o is NonNullable<typeof o> => o !== null);
 
     const firstOwner = owners[0] ?? null;
@@ -357,12 +360,15 @@ export const sendPossessionNotice = createServerFn({ method: "POST" })
       .eq("parcel_id", data.parcelId);
 
     const owners = (ownerships ?? [])
-      .map((o) => (o.landowners ?? null) as unknown as {
-        id: string;
-        full_name: string;
-        contact_phone: string | null;
-        user_id: string | null;
-      } | null)
+      .map(
+        (o) =>
+          (o.landowners ?? null) as unknown as {
+            id: string;
+            full_name: string;
+            contact_phone: string | null;
+            user_id: string | null;
+          } | null,
+      )
       .filter((o): o is NonNullable<typeof o> => o !== null);
 
     const firstOwner = owners[0] ?? null;

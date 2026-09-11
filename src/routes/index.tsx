@@ -188,34 +188,34 @@ function HomePage() {
 
       {/* National map — every project on record */}
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-        <p className="eyebrow">National map</p>
+        <p className="eyebrow">National map of India</p>
         <h2 className="mt-1.5 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Every parcel acquired to date, on one map
+          National Infrastructure Corridors & Land Acquisition
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          All projects together, coloured by stage. Click a parcel to see its survey number, area
-          and stage — no landowner is named.
+          Official Survey of India aligned national portal. Explore state-level infrastructure
+          projects, highway alignment corridors, and notified land parcels across all 36 States
+          &amp; UTs.
         </p>
 
         <div className="mt-6 space-y-4">
+          {isLoading ? (
+            <MapFallback label="Loading the national map of India…" />
+          ) : error ? (
+            <MapFallback label="The map could not be loaded just now." />
+          ) : (
+            <ClientOnly fallback={<MapFallback label="Preparing the map…" />}>
+              <Suspense fallback={<MapFallback label="Preparing the map…" />}>
+                <PublicParcelMap
+                  parcels={parcels}
+                  routes={data?.routes ?? []}
+                  projects={data?.projects ?? []}
+                  isNationalPortal={true}
+                />
+              </Suspense>
+            </ClientOnly>
+          )}
           <MapLegend />
-          <div className="surface overflow-hidden p-0">
-            {isLoading ? (
-              <MapFallback label="Loading the map…" />
-            ) : error ? (
-              <MapFallback label="The map could not be loaded just now." />
-            ) : mappable === 0 ? (
-              <MapFallback label="No parcel boundaries have been published yet." />
-            ) : (
-              <ClientOnly fallback={<MapFallback label="Preparing the map…" />}>
-                <Suspense fallback={<MapFallback label="Preparing the map…" />}>
-                  <div className="h-[26rem] sm:h-[32rem]">
-                    <PublicParcelMap parcels={parcels} routes={data?.routes ?? []} />
-                  </div>
-                </Suspense>
-              </ClientOnly>
-            )}
-          </div>
         </div>
       </section>
 

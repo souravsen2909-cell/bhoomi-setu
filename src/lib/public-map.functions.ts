@@ -6,6 +6,8 @@ export type GeoJsonGeometry = { type: string; coordinates: Json };
 
 export type PublicParcel = {
   id: string;
+  project_id?: string | null;
+  state_name?: string | null;
   survey_number: string;
   area_hectares: number | null;
   status: string | null;
@@ -14,6 +16,8 @@ export type PublicParcel = {
 
 export type PublicRoute = {
   id: string;
+  project_id?: string | null;
+  state_name?: string | null;
   name: string;
   geometry: GeoJsonGeometry | null;
 };
@@ -40,8 +44,11 @@ const asGeometry = (value: unknown): GeoJsonGeometry | null => {
 };
 
 const SAMPLE_PARCELS: PublicParcel[] = [
+  // Maharashtra (Palghar / Vadodara-Mumbai Expressway)
   {
-    id: "parcel-101",
+    id: "parcel-mh-101",
+    project_id: "proj-1",
+    state_name: "Maharashtra",
     survey_number: "24/1A",
     area_hectares: 2.45,
     status: "possession_taken",
@@ -59,7 +66,9 @@ const SAMPLE_PARCELS: PublicParcel[] = [
     },
   },
   {
-    id: "parcel-102",
+    id: "parcel-mh-102",
+    project_id: "proj-1",
+    state_name: "Maharashtra",
     survey_number: "24/1B",
     area_hectares: 1.82,
     status: "award_declared",
@@ -77,7 +86,9 @@ const SAMPLE_PARCELS: PublicParcel[] = [
     },
   },
   {
-    id: "parcel-103",
+    id: "parcel-mh-103",
+    project_id: "proj-1",
+    state_name: "Maharashtra",
     survey_number: "25/3",
     area_hectares: 3.12,
     status: "notified",
@@ -95,7 +106,9 @@ const SAMPLE_PARCELS: PublicParcel[] = [
     },
   },
   {
-    id: "parcel-104",
+    id: "parcel-mh-104",
+    project_id: "proj-1",
+    state_name: "Maharashtra",
     survey_number: "26/2A",
     area_hectares: 0.95,
     status: "disputed",
@@ -113,7 +126,9 @@ const SAMPLE_PARCELS: PublicParcel[] = [
     },
   },
   {
-    id: "parcel-105",
+    id: "parcel-mh-105",
+    project_id: "proj-1",
+    state_name: "Maharashtra",
     survey_number: "27/4",
     area_hectares: 4.2,
     status: "identified",
@@ -130,11 +145,156 @@ const SAMPLE_PARCELS: PublicParcel[] = [
       ],
     },
   },
+  // Bihar (Rohtas / Sonnagar - Eastern DFC)
+  {
+    id: "parcel-br-201",
+    project_id: "proj-2",
+    state_name: "Bihar",
+    survey_number: "88/1",
+    area_hectares: 3.8,
+    status: "possession_taken",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [84.14, 24.95],
+          [84.152, 24.956],
+          [84.158, 24.948],
+          [84.146, 24.942],
+          [84.14, 24.95],
+        ],
+      ],
+    },
+  },
+  {
+    id: "parcel-br-202",
+    project_id: "proj-2",
+    state_name: "Bihar",
+    survey_number: "88/2B",
+    area_hectares: 2.15,
+    status: "award_declared",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [84.158, 24.948],
+          [84.168, 24.953],
+          [84.172, 24.944],
+          [84.162, 24.939],
+          [84.158, 24.948],
+        ],
+      ],
+    },
+  },
+  {
+    id: "parcel-br-203",
+    project_id: "proj-2",
+    state_name: "Bihar",
+    survey_number: "89/4",
+    area_hectares: 1.6,
+    status: "notified",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [84.172, 24.944],
+          [84.182, 24.949],
+          [84.186, 24.94],
+          [84.176, 24.935],
+          [84.172, 24.944],
+        ],
+      ],
+    },
+  },
+  // Karnataka (Bengaluru Suburban Rail Corridor)
+  {
+    id: "parcel-ka-301",
+    project_id: "proj-3",
+    state_name: "Karnataka",
+    survey_number: "112/A",
+    area_hectares: 1.45,
+    status: "possession_taken",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [77.58, 12.97],
+          [77.588, 12.975],
+          [77.592, 12.968],
+          [77.584, 12.963],
+          [77.58, 12.97],
+        ],
+      ],
+    },
+  },
+  {
+    id: "parcel-ka-302",
+    project_id: "proj-3",
+    state_name: "Karnataka",
+    survey_number: "114/2",
+    area_hectares: 2.9,
+    status: "notified",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [77.592, 12.968],
+          [77.6, 12.972],
+          [77.604, 12.965],
+          [77.596, 12.96],
+          [77.592, 12.968],
+        ],
+      ],
+    },
+  },
+  // Jharkhand (Ranchi NH-33 Section)
+  {
+    id: "parcel-jh-401",
+    project_id: "proj-4",
+    state_name: "Jharkhand",
+    survey_number: "54/3",
+    area_hectares: 2.7,
+    status: "possession_taken",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [85.325, 23.36],
+          [85.334, 23.365],
+          [85.338, 23.358],
+          [85.329, 23.353],
+          [85.325, 23.36],
+        ],
+      ],
+    },
+  },
+  {
+    id: "parcel-jh-402",
+    project_id: "proj-4",
+    state_name: "Jharkhand",
+    survey_number: "56/1B",
+    area_hectares: 1.95,
+    status: "notified",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [85.338, 23.358],
+          [85.348, 23.362],
+          [85.352, 23.354],
+          [85.342, 23.349],
+          [85.338, 23.358],
+        ],
+      ],
+    },
+  },
 ];
 
 const SAMPLE_ROUTES: PublicRoute[] = [
   {
     id: "route-nh48",
+    project_id: "proj-1",
+    state_name: "Maharashtra",
     name: "Delhi-Mumbai Expressway Alignment (Package 4)",
     geometry: {
       type: "LineString",
@@ -144,6 +304,37 @@ const SAMPLE_ROUTES: PublicRoute[] = [
         [72.905, 19.335],
         [72.92, 19.33],
         [72.935, 19.325],
+      ],
+    },
+  },
+  {
+    id: "route-dfc-br",
+    project_id: "proj-2",
+    state_name: "Bihar",
+    name: "Eastern Dedicated Freight Corridor Alignment (Sonnagar Rail Bypass)",
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [84.135, 24.955],
+        [84.15, 24.95],
+        [84.165, 24.945],
+        [84.18, 24.94],
+        [84.195, 24.935],
+      ],
+    },
+  },
+  {
+    id: "route-nh33-jh",
+    project_id: "proj-4",
+    state_name: "Jharkhand",
+    name: "NH-33 Ranchi Bypass 4-Lane Alignment Corridor",
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [85.315, 23.365],
+        [85.33, 23.36],
+        [85.345, 23.355],
+        [85.36, 23.35],
       ],
     },
   },
@@ -244,29 +435,83 @@ const SAMPLE_PROJECTS: PublicProjectSummary[] = [
   },
 ];
 
+export type PublicMapData = {
+  parcels: PublicParcel[];
+  routes: PublicRoute[];
+  projects: PublicProjectSummary[];
+};
+
 // Public, unauthenticated read. Only non-identifying parcel columns are
 // selected: no landowner, ownership or compensation data is exposed.
 export const getPublicMapData = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ parcels: PublicParcel[]; routes: PublicRoute[] }> => {
+  async (): Promise<PublicMapData> => {
+    let parcels: PublicParcel[] = [];
+    let routes: PublicRoute[] = [];
+    let projects: PublicProjectSummary[] = [];
+
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { data, error } = await supabaseAdmin
-        .from("public_parcels")
-        .select("id, survey_number, area_hectares, status, geom")
-        .limit(2000);
-      if (error) throw new Error(error.message);
+      try {
+        projects = await fetchAllPublicProjects();
+      } catch {
+        projects = SAMPLE_PROJECTS;
+      }
 
-      const parcels: PublicParcel[] = (data ?? []).map((row) => ({
-        id: String(row.id),
-        survey_number: String(row.survey_number ?? ""),
-        area_hectares: row.area_hectares ?? null,
-        status: row.status ?? null,
-        geometry: asGeometry(row.geom),
-      }));
+      const projectToStateMap = new Map<string, string>();
+      for (const p of projects) {
+        if (p.state_name) projectToStateMap.set(p.id, p.state_name);
+      }
 
-      if (parcels.length > 0) {
-        return { parcels, routes: [] };
+      const [parcelsRes, routesRes] = await Promise.all([
+        supabaseAdmin
+          .from("public_parcels")
+          .select("id, survey_number, area_hectares, status, geom, project_id")
+          .limit(2000),
+        supabaseAdmin
+          .from("documents")
+          .select("id, file_name, file_url, entity_id")
+          .eq("entity_type", "highway_route"),
+      ]);
+
+      if (!parcelsRes.error && parcelsRes.data) {
+        parcels = parcelsRes.data.map((row) => {
+          const projId = row.project_id ? String(row.project_id) : null;
+          return {
+            id: String(row.id),
+            project_id: projId,
+            state_name: projId ? (projectToStateMap.get(projId) ?? null) : null,
+            survey_number: String(row.survey_number ?? ""),
+            area_hectares: row.area_hectares ?? null,
+            status: row.status ?? null,
+            geometry: asGeometry(row.geom),
+          };
+        });
+      }
+
+      if (!routesRes.error && routesRes.data) {
+        routes = routesRes.data
+          .map((row) => {
+            const projId = (row as { entity_id?: string | null }).entity_id
+              ? String((row as { entity_id?: string | null }).entity_id)
+              : null;
+            return {
+              id: String(row.id),
+              project_id: projId,
+              state_name: projId ? (projectToStateMap.get(projId) ?? null) : null,
+              name: String(row.file_name ?? "Highway Alignment"),
+              geometry: asGeometry(row.file_url),
+            };
+          })
+          .filter((r) => r.geometry !== null);
+      }
+
+      if (parcels.length > 0 || routes.length > 0 || projects.length > 0) {
+        return {
+          parcels: parcels.length > 0 ? parcels : SAMPLE_PARCELS,
+          routes: routes.length > 0 ? routes : SAMPLE_ROUTES,
+          projects: projects.length > 0 ? projects : SAMPLE_PROJECTS,
+        };
       }
     } catch (err) {
       console.warn(
@@ -275,7 +520,7 @@ export const getPublicMapData = createServerFn({ method: "GET" }).handler(
       );
     }
 
-    return { parcels: SAMPLE_PARCELS, routes: SAMPLE_ROUTES };
+    return { parcels: SAMPLE_PARCELS, routes: SAMPLE_ROUTES, projects: SAMPLE_PROJECTS };
   },
 );
 
@@ -373,133 +618,129 @@ export type PublicProjectSummary = {
   geometries: PublicParcel[];
 };
 
+// Helper to fetch all projects summaries for public views and national map
+export async function fetchAllPublicProjects(): Promise<PublicProjectSummary[]> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const [projectsRes, parcelsRes, jurisRes, awardsRes, compRes, familiesRes] = await Promise.all([
+      supabaseAdmin
+        .from("projects")
+        .select(
+          "id, name, sector, requiring_body, status, state_id, district_id, estimated_area_ha, created_at",
+        )
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("public_parcels")
+        .select("id, project_id, survey_number, area_hectares, status, geom")
+        .limit(5000),
+      supabaseAdmin.from("jurisdictions").select("id, name"),
+      supabaseAdmin.from("awards").select("id, parcel_id, declared_amount"),
+      supabaseAdmin.from("compensation").select("award_id, disbursed_amount, disbursement_status"),
+      supabaseAdmin.from("affected_families").select("id, parcel_id"),
+    ]);
+    for (const res of [projectsRes, parcelsRes, jurisRes, awardsRes, compRes, familiesRes]) {
+      if (res.error) throw new Error(res.error.message);
+    }
+
+    const names = new Map((jurisRes.data ?? []).map((j) => [j.id, j.name]));
+    const parcelProject = new Map<string, string>();
+    for (const p of parcelsRes.data ?? []) {
+      if (p.id && p.project_id) parcelProject.set(String(p.id), String(p.project_id));
+    }
+
+    const declaredByProject = new Map<string, number>();
+    const awardProject = new Map<string, string>();
+    for (const a of awardsRes.data ?? []) {
+      const projectId = parcelProject.get(String(a.parcel_id));
+      if (!projectId) continue;
+      awardProject.set(String(a.id), projectId);
+      declaredByProject.set(
+        projectId,
+        (declaredByProject.get(projectId) ?? 0) + toNum(a.declared_amount),
+      );
+    }
+
+    const paidByProject = new Map<string, number>();
+    for (const c of compRes.data ?? []) {
+      const projectId = awardProject.get(String(c.award_id));
+      if (!projectId) continue;
+      paidByProject.set(projectId, (paidByProject.get(projectId) ?? 0) + toNum(c.disbursed_amount));
+    }
+
+    const familiesByProject = new Map<string, number>();
+    for (const f of familiesRes.data ?? []) {
+      const projectId = f.parcel_id ? parcelProject.get(String(f.parcel_id)) : undefined;
+      if (!projectId) continue;
+      familiesByProject.set(projectId, (familiesByProject.get(projectId) ?? 0) + 1);
+    }
+
+    const projects = (projectsRes.data ?? []).map((project) => {
+      const own = (parcelsRes.data ?? []).filter(
+        (p) => String(p.project_id) === String(project.id),
+      );
+      const byStage: Record<string, number> = {};
+      let areaNotified = 0;
+      let areaAcquired = 0;
+      let disputes = 0;
+      for (const p of own) {
+        const status = String(p.status ?? "identified");
+        byStage[status] = (byStage[status] ?? 0) + 1;
+        if (NOTIFIED_ONWARDS.includes(status)) areaNotified += toNum(p.area_hectares);
+        if (status === "possession_taken") areaAcquired += toNum(p.area_hectares);
+        if (status === "disputed") disputes += 1;
+      }
+      const declared = declaredByProject.get(String(project.id)) ?? 0;
+      const paid = paidByProject.get(String(project.id)) ?? 0;
+
+      return {
+        id: String(project.id),
+        name: project.name,
+        sector: project.sector ?? null,
+        requiring_body: project.requiring_body,
+        status: project.status ?? "unknown",
+        state_name: project.state_id ? (names.get(project.state_id) ?? null) : null,
+        district_name: project.district_id ? (names.get(project.district_id) ?? null) : null,
+        estimated_area_ha:
+          project.estimated_area_ha === null ? null : toNum(project.estimated_area_ha),
+        created_at: project.created_at ?? null,
+        parcels: own.length,
+        parcels_by_stage: byStage,
+        area_notified: areaNotified,
+        area_acquired: areaAcquired,
+        compensation_declared: declared,
+        compensation_disbursed: paid,
+        compensation_pending: Math.max(declared - paid, 0),
+        disputes_open: disputes,
+        families: familiesByProject.get(String(project.id)) ?? 0,
+        completion:
+          own.length === 0
+            ? 0
+            : Math.round(((byStage["possession_taken"] ?? 0) / own.length) * 100),
+        geometries: own.map((p) => ({
+          id: String(p.id),
+          survey_number: String(p.survey_number ?? ""),
+          area_hectares: p.area_hectares ?? null,
+          status: p.status ?? null,
+          geometry: asGeometry(p.geom),
+        })),
+      } satisfies PublicProjectSummary;
+    });
+
+    if (projects.length > 0) {
+      return projects;
+    }
+  } catch (err) {
+    console.warn("[Bhoomi Setu] Database not connected or empty, using sample projects data:", err);
+  }
+
+  return SAMPLE_PROJECTS;
+}
+
 // Public, unauthenticated read. Per-project progress figures and parcel
 // outlines only — no landowner, ownership or payee identity is exposed.
 export const getPublicProjects = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicProjectSummary[]> => {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      const [projectsRes, parcelsRes, jurisRes, awardsRes, compRes, familiesRes] =
-        await Promise.all([
-          supabaseAdmin
-            .from("projects")
-            .select(
-              "id, name, sector, requiring_body, status, state_id, district_id, estimated_area_ha, created_at",
-            )
-            .order("created_at", { ascending: false }),
-          supabaseAdmin
-            .from("public_parcels")
-            .select("id, project_id, survey_number, area_hectares, status, geom")
-            .limit(5000),
-          supabaseAdmin.from("jurisdictions").select("id, name"),
-          supabaseAdmin.from("awards").select("id, parcel_id, declared_amount"),
-          supabaseAdmin
-            .from("compensation")
-            .select("award_id, disbursed_amount, disbursement_status"),
-          supabaseAdmin.from("affected_families").select("id, parcel_id"),
-        ]);
-      for (const res of [projectsRes, parcelsRes, jurisRes, awardsRes, compRes, familiesRes]) {
-        if (res.error) throw new Error(res.error.message);
-      }
-
-      const names = new Map((jurisRes.data ?? []).map((j) => [j.id, j.name]));
-      const parcelProject = new Map<string, string>();
-      for (const p of parcelsRes.data ?? []) {
-        if (p.id && p.project_id) parcelProject.set(String(p.id), String(p.project_id));
-      }
-
-      const declaredByProject = new Map<string, number>();
-      const awardProject = new Map<string, string>();
-      for (const a of awardsRes.data ?? []) {
-        const projectId = parcelProject.get(String(a.parcel_id));
-        if (!projectId) continue;
-        awardProject.set(String(a.id), projectId);
-        declaredByProject.set(
-          projectId,
-          (declaredByProject.get(projectId) ?? 0) + toNum(a.declared_amount),
-        );
-      }
-
-      const paidByProject = new Map<string, number>();
-      for (const c of compRes.data ?? []) {
-        const projectId = awardProject.get(String(c.award_id));
-        if (!projectId) continue;
-        paidByProject.set(
-          projectId,
-          (paidByProject.get(projectId) ?? 0) + toNum(c.disbursed_amount),
-        );
-      }
-
-      const familiesByProject = new Map<string, number>();
-      for (const f of familiesRes.data ?? []) {
-        const projectId = f.parcel_id ? parcelProject.get(String(f.parcel_id)) : undefined;
-        if (!projectId) continue;
-        familiesByProject.set(projectId, (familiesByProject.get(projectId) ?? 0) + 1);
-      }
-
-      const projects = (projectsRes.data ?? []).map((project) => {
-        const own = (parcelsRes.data ?? []).filter(
-          (p) => String(p.project_id) === String(project.id),
-        );
-        const byStage: Record<string, number> = {};
-        let areaNotified = 0;
-        let areaAcquired = 0;
-        let disputes = 0;
-        for (const p of own) {
-          const status = String(p.status ?? "identified");
-          byStage[status] = (byStage[status] ?? 0) + 1;
-          if (NOTIFIED_ONWARDS.includes(status)) areaNotified += toNum(p.area_hectares);
-          if (status === "possession_taken") areaAcquired += toNum(p.area_hectares);
-          if (status === "disputed") disputes += 1;
-        }
-        const declared = declaredByProject.get(String(project.id)) ?? 0;
-        const paid = paidByProject.get(String(project.id)) ?? 0;
-
-        return {
-          id: String(project.id),
-          name: project.name,
-          sector: project.sector ?? null,
-          requiring_body: project.requiring_body,
-          status: project.status ?? "unknown",
-          state_name: project.state_id ? (names.get(project.state_id) ?? null) : null,
-          district_name: project.district_id ? (names.get(project.district_id) ?? null) : null,
-          estimated_area_ha:
-            project.estimated_area_ha === null ? null : toNum(project.estimated_area_ha),
-          created_at: project.created_at ?? null,
-          parcels: own.length,
-          parcels_by_stage: byStage,
-          area_notified: areaNotified,
-          area_acquired: areaAcquired,
-          compensation_declared: declared,
-          compensation_disbursed: paid,
-          compensation_pending: Math.max(declared - paid, 0),
-          disputes_open: disputes,
-          families: familiesByProject.get(String(project.id)) ?? 0,
-          completion:
-            own.length === 0
-              ? 0
-              : Math.round(((byStage["possession_taken"] ?? 0) / own.length) * 100),
-          geometries: own.map((p) => ({
-            id: String(p.id),
-            survey_number: String(p.survey_number ?? ""),
-            area_hectares: p.area_hectares ?? null,
-            status: p.status ?? null,
-            geometry: asGeometry(p.geom),
-          })),
-        } satisfies PublicProjectSummary;
-      });
-
-      if (projects.length > 0) {
-        return projects;
-      }
-    } catch (err) {
-      console.warn(
-        "[Bhoomi Setu] Database not connected or empty, using sample projects data:",
-        err,
-      );
-    }
-
-    return SAMPLE_PROJECTS;
+    return fetchAllPublicProjects();
   },
 );

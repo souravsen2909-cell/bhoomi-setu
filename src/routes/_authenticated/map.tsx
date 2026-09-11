@@ -50,11 +50,16 @@ function ParcelMapPage() {
   const mappable = parcels.filter((p) => p.geometry !== null).length;
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-background">
-      <div className="absolute inset-0">
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-background flex flex-col">
+      <div className="absolute inset-0 pt-20 sm:pt-24 p-3 sm:p-4 overflow-y-auto">
         <ClientOnly fallback={<MapFallback />}>
           <Suspense fallback={<MapFallback />}>
-            <PublicParcelMap parcels={parcels} routes={routes} />
+            <PublicParcelMap
+              parcels={parcels}
+              routes={routes}
+              projects={data?.projects}
+              isNationalPortal={true}
+            />
           </Suspense>
         </ClientOnly>
       </div>

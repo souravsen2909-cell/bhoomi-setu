@@ -3,6 +3,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Tier } from "@/lib/profile.functions";
 import type { GeoJson } from "@/lib/wkb";
 
+export type DrawnRoute = {
+  id: string;
+  projectId: string;
+  name: string;
+  geometry: { type: string; coordinates: GeoJson } | null;
+};
+
 export type ProjectOption = { id: string; name: string };
 export type LandownerOption = { id: string; full_name: string; contact_phone: string | null };
 
@@ -21,6 +28,13 @@ export type NewParcelInput = {
   ring: [number, number][];
   landownerId: string | null;
   newLandowner: { fullName: string; contactPhone: string } | null;
+};
+
+export type NewHighwayRouteInput = {
+  projectId: string;
+  name: string;
+  coordinates: [number, number][];
+  widthMeters?: number;
 };
 
 type Caller = { userId: string; tier: Tier; jurisdictionId: string | null };
@@ -87,20 +101,47 @@ export const getParcelDrawOptions = createServerFn({ method: "GET" })
       if (ownersRes.error) throw new Error(ownersRes.error.message);
 
       let parcels: DrawnParcel[] = [];
+      let routes: DrawnRoute[] = [];
       if (projectIds.length > 0) {
-        const { data, error } = await supabaseAdmin
-          .from("parcels")
-          .select("id, survey_number, area_hectares, status, geom")
-          .in("project_id", projectIds)
-          .limit(1000);
-        if (error) throw new Error(error.message);
-        parcels = (data ?? []).map((row) => ({
+        const [parcelsRes, routesRes] = await Promise.all([
+          supabaseAdmin
+            .from("parcels")
+            .select("id, survey_number, area_hectares, status, geom")
+            .in("project_id", projectIds)
+            .limit(1000),
+          supabaseAdmin
+            .from("documents")
+            .select("id, entity_id, file_name, file_url")
+            .eq("entity_type", "highway_route")
+            .in("entity_id", projectIds),
+        ]);
+        if (parcelsRes.error) throw new Error(parcelsRes.error.message);
+        parcels = (parcelsRes.data ?? []).map((row) => ({
           id: String(row.id),
           survey_number: String(row.survey_number ?? ""),
           area_hectares: row.area_hectares ?? null,
           status: row.status ?? null,
           geometry: wkbHexToGeoJson(row.geom),
         }));
+
+        if (!routesRes.error && routesRes.data) {
+          routes = routesRes.data
+            .map((row) => {
+              let geom = null;
+              try {
+                geom = JSON.parse(row.file_url);
+              } catch {
+                // ignore
+              }
+              return {
+                id: String(row.id),
+                projectId: String(row.entity_id),
+                name: String(row.file_name ?? "Highway Alignment"),
+                geometry: geom,
+              };
+            })
+            .filter((r) => r.geometry !== null);
+        }
       }
 
       return {
@@ -112,6 +153,7 @@ export const getParcelDrawOptions = createServerFn({ method: "GET" })
           contact_phone: o.contact_phone ?? null,
         })),
         parcels,
+        routes,
       };
     },
   );
@@ -189,4 +231,54 @@ export const createDrawnParcel = createServerFn({ method: "POST" })
     if (ownershipError) throw new Error(ownershipError.message);
 
     return { parcelId: parcel.id as string, landownerId };
+  });
+
+export const createDrawnHighwayRoute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: NewHighwayRouteInput) => {
+    if (!input?.projectId) throw new Error("Please choose a project.");
+    const name = (input.name ?? "").trim();
+    if (!name) throw new Error("Please enter a route alignment name.");
+    if (!Array.isArray(input.coordinates) || input.coordinates.length < 2)
+      throw new Error("Please draw a highway route with at least two alignment points.");
+    return {
+      projectId: input.projectId,
+      name: name.slice(0, 150),
+      coordinates: input.coordinates.map(
+        ([lng, lat]) => [Number(lng), Number(lat)] as [number, number],
+      ),
+      widthMeters: input.widthMeters ? Number(input.widthMeters) : 60,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const caller = await loadDistrictCaller(context.userId);
+    const projectIds = await approvedProjectIds(caller);
+    if (!projectIds.includes(data.projectId))
+      throw new Error("That project is not approved for your district yet.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const geojson = {
+      type: "LineString",
+      coordinates: data.coordinates,
+      properties: {
+        width_meters: data.widthMeters ?? 60,
+      },
+    };
+
+    const { data: doc, error } = await supabaseAdmin
+      .from("documents")
+      .insert({
+        entity_type: "highway_route",
+        entity_id: data.projectId,
+        file_name: data.name,
+        file_url: JSON.stringify(geojson),
+        uploaded_by: context.userId,
+      })
+      .select("id")
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    return { routeId: doc.id as string };
   });
