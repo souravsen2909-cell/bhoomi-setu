@@ -138,18 +138,36 @@ async function loadCaller(userId: string): Promise<Caller> {
 }
 
 /** Ids of the projects this caller may see on the project board. */
-async function scopedProjectIds(caller: Caller): Promise<string[] | null> {
-  if (caller.tier === "central_ministry") return null; // all projects
+async function scopedProjectIds(
+  caller: Caller,
+  filterStateId?: string | null,
+): Promise<string[] | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  if (caller.tier === "district_authority" || caller.tier === "state_government") {
-    if (!caller.jurisdictionId) return [];
-    const { data, error } = await supabaseAdmin
-      .from("projects")
-      .select("id")
-      .or(`district_id.eq.${caller.jurisdictionId},state_id.eq.${caller.jurisdictionId}`);
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((p) => p.id);
+  if (caller.tier === "central_ministry" || caller.tier === "state_government") {
+    if (filterStateId && filterStateId !== "all") {
+      const { data, error } = await supabaseAdmin
+        .from("projects")
+        .select("id")
+        .or(`district_id.eq.${filterStateId},state_id.eq.${filterStateId}`);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((p) => p.id);
+    }
+    return null; // all projects
+  }
+
+  if (caller.tier === "district_authority") {
+    if (filterStateId && filterStateId !== "all") {
+      const { data, error } = await supabaseAdmin
+        .from("projects")
+        .select("id")
+        .or(`district_id.eq.${filterStateId},state_id.eq.${filterStateId}`);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((p) => p.id);
+    }
+    // Return null (unrestricted) so district authorities can access all projects
+    // across India, especially approved agency projects needing parcel mapping and execution.
+    return null;
   }
 
   const [created, submitted] = await Promise.all([
@@ -185,7 +203,8 @@ async function buildCards(ids: string[] | null): Promise<AgencyProjectCard[]> {
     supabaseAdmin
       .from("proposals")
       .select("project_id, status, created_at")
-      .in("project_id", projectIds),
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("parcels")
       .select("id, project_id, area_hectares, status")
@@ -288,9 +307,12 @@ async function buildCards(ids: string[] | null): Promise<AgencyProjectCard[]> {
 
 export const getAgencyProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<AgencyProjectCard[]> => {
+  .inputValidator((input?: { stateId?: string | null } | void) => {
+    return { stateId: input?.stateId ?? null };
+  })
+  .handler(async ({ data, context }): Promise<AgencyProjectCard[]> => {
     const caller = await loadCaller(context.userId);
-    return buildCards(await scopedProjectIds(caller));
+    return buildCards(await scopedProjectIds(caller, data?.stateId));
   });
 
 export const getAgencyProject = createServerFn({ method: "GET" })

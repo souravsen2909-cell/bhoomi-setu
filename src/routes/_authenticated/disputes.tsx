@@ -133,11 +133,7 @@ function DisputesPage() {
       <section className="mt-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-lg font-semibold text-foreground">
-            {canReview
-              ? "Disputes in your jurisdiction"
-              : canWatch
-                ? "Disputes on record"
-                : "Your disputes"}
+            {canReview || canWatch ? "Disputes on record" : "Your disputes"}
           </h2>
           <div className="w-full space-y-2 sm:w-48">
             <Label htmlFor="d-filter">Filter by status</Label>

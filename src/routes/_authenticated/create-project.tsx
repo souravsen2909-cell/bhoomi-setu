@@ -68,12 +68,15 @@ function CreateProjectPage() {
   const mutation = useMutation({
     mutationFn: (input: Parameters<typeof createProject>[0]["data"]) => submit({ data: input }),
     onSuccess: async () => {
-      toast.success("Project created");
+      toast.success("Project proposal created and submitted for state verification!");
       setName("");
       setRequiringBody("");
       setArea("");
       setDistrictId("");
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["agency-projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["workflow-proposals"] });
+      navigate({ to: "/projects" });
     },
     onError: (error: Error) => toast.error(error.message || "Could not create the project"),
   });

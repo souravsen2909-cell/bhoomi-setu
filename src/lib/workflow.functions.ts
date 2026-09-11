@@ -10,6 +10,9 @@ export type WorkflowProposal = {
   id: string;
   project_id: string;
   project_name: string;
+  state_id: string | null;
+  state_name: string | null;
+  district_name: string | null;
   status: ProposalStatus;
   submitted_at: string | null;
   created_at: string | null;
@@ -99,29 +102,69 @@ async function loadCaller(userId: string): Promise<Caller> {
  * ministry). Agencies are scoped by the proposals they submitted, not by
  * jurisdiction, so they get `null` here and are filtered separately.
  */
-async function scopedProjectIds(caller: Caller): Promise<string[] | null> {
-  if (caller.tier === "central_ministry" || caller.tier === "implementing_agency") return null;
+async function scopedProjectIds(
+  caller: Caller,
+  filterStateId?: string | null,
+): Promise<string[] | null> {
+  if (caller.tier === "central_ministry" || caller.tier === "implementing_agency") {
+    if (filterStateId && filterStateId !== "all") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data, error } = await supabaseAdmin
+        .from("projects")
+        .select("id")
+        .or(`district_id.eq.${filterStateId},state_id.eq.${filterStateId}`);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((p) => p.id);
+    }
+    return null;
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  if (!caller.jurisdictionId) return [];
-  const { data, error } = await supabaseAdmin
-    .from("projects")
-    .select("id")
-    .or(`district_id.eq.${caller.jurisdictionId},state_id.eq.${caller.jurisdictionId}`);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((p) => p.id);
+
+  if (caller.tier === "state_government") {
+    if (filterStateId && filterStateId !== "all") {
+      const { data, error } = await supabaseAdmin
+        .from("projects")
+        .select("id")
+        .or(`district_id.eq.${filterStateId},state_id.eq.${filterStateId}`);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((p) => p.id);
+    }
+    return null;
+  }
+
+  if (caller.tier === "district_authority") {
+    if (filterStateId && filterStateId !== "all") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data, error } = await supabaseAdmin
+        .from("projects")
+        .select("id")
+        .or(`district_id.eq.${filterStateId},state_id.eq.${filterStateId}`);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((p) => p.id);
+    }
+    return null;
+  }
+
+  return [];
 }
 
 export const getWorkflowProposals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<WorkflowProposal[]> => {
+  .inputValidator((input?: { stateId?: string | null } | void) => {
+    return { stateId: input?.stateId ?? null };
+  })
+  .handler(async ({ data: inputData, context }): Promise<WorkflowProposal[]> => {
     const caller = await loadCaller(context.userId);
-    const projectIds = await scopedProjectIds(caller);
+    const projectIds = await scopedProjectIds(caller, inputData?.stateId);
     if (projectIds && projectIds.length === 0) return [];
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("proposals")
-      .select("id, project_id, status, submitted_at, created_at, purpose, remarks, projects(name)")
+      .select(
+        "id, project_id, status, submitted_at, created_at, purpose, remarks, projects(id, name, state_id, district_id)",
+      )
       .order("created_at", { ascending: false });
 
     if (projectIds) query = query.in("project_id", projectIds);
@@ -132,6 +175,9 @@ export const getWorkflowProposals = createServerFn({ method: "GET" })
 
     const rows = data ?? [];
     const counts = new Map<string, number>();
+    const { data: jurisdictions } = await supabaseAdmin.from("jurisdictions").select("id, name");
+    const jurNames = new Map((jurisdictions ?? []).map((j) => [j.id, j.name]));
+
     if (rows.length > 0) {
       const { data: parcels } = await supabaseAdmin
         .from("parcels")
@@ -143,12 +189,25 @@ export const getWorkflowProposals = createServerFn({ method: "GET" })
     }
 
     return rows.map((row) => {
-      const project = row.projects as unknown as { name: string } | null;
+      const project = row.projects as unknown as {
+        id: string;
+        name: string;
+        state_id: string | null;
+        district_id: string | null;
+      } | null;
       const status = (row.status ?? "draft") as ProposalStatus;
+      const stateName = project?.state_id ? (jurNames.get(project.state_id) ?? null) : null;
+      const districtName = project?.district_id
+        ? (jurNames.get(project.district_id) ?? null)
+        : null;
+
       return {
         id: row.id,
         project_id: row.project_id,
         project_name: project?.name ?? "Untitled project",
+        state_id: project?.state_id ?? null,
+        state_name: stateName,
+        district_name: districtName,
         status,
         submitted_at: row.submitted_at,
         created_at: row.created_at,
@@ -173,6 +232,13 @@ async function assertInScope(caller: Caller, proposalId: string) {
 
   if (caller.tier === "implementing_agency") {
     if (data.submitted_by !== caller.userId) throw new Error("Forbidden");
+    return data;
+  }
+  if (
+    caller.tier === "state_government" ||
+    caller.tier === "central_ministry" ||
+    caller.tier === "district_authority"
+  ) {
     return data;
   }
   const projectIds = await scopedProjectIds(caller);
@@ -230,6 +296,11 @@ export const advanceProposal = createServerFn({ method: "POST" })
         .update({ status: "approved" })
         .eq("id", proposal.project_id);
       if (projectError) throw new Error(projectError.message);
+    } else if (next === "under_scrutiny") {
+      await supabaseAdmin
+        .from("projects")
+        .update({ status: "under_scrutiny" })
+        .eq("id", proposal.project_id);
     }
 
     await recordStage(data.proposalId, next, caller, "completed");
@@ -263,6 +334,11 @@ export const returnProposalForCorrection = createServerFn({ method: "POST" })
       .update({ status: "returned_for_correction", remarks: data.remarks })
       .eq("id", data.proposalId);
     if (error) throw new Error(error.message);
+
+    await supabaseAdmin
+      .from("projects")
+      .update({ status: "returned_for_correction" })
+      .eq("id", proposal.project_id);
 
     await recordStage(data.proposalId, "returned_for_correction", caller, "completed");
     await notifyProposalStatusChange({

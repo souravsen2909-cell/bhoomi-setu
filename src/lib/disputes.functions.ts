@@ -161,19 +161,9 @@ export const getDisputes = createServerFn({ method: "GET" })
     }
 
     if (REVIEW_TIERS.includes(caller.tier) || caller.tier === "state_government") {
-      if (!caller.jurisdictionId) return [];
-      const { data: parcels, error: parcelError } = await supabaseAdmin
-        .from("parcels")
-        .select("id")
-        .or(`district_id.eq.${caller.jurisdictionId},state_id.eq.${caller.jurisdictionId}`);
-      if (parcelError) throw new Error(parcelError.message);
-      const parcelIds = (parcels ?? []).map((p) => p.id);
-      if (parcelIds.length === 0) return [];
-
       const { data, error } = await supabaseAdmin
         .from("disputes")
         .select(SELECT)
-        .in("parcel_id", parcelIds)
         .order("filed_at", { ascending: false });
       if (error) throw new Error(error.message);
       return (data ?? []).map(toRow);
@@ -319,30 +309,15 @@ export const updateDisputeStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ status: DisputeStatus }> => {
     const caller = await loadCaller(context.userId);
     if (!REVIEW_TIERS.includes(caller.tier)) throw new Error("Forbidden");
-    if (!caller.jurisdictionId) throw new Error("Your account has no jurisdiction assigned.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: dispute, error: disputeError } = await supabaseAdmin
       .from("disputes")
-      .select("id, parcel_id, parcels(district_id, state_id, projects(district_id, state_id))")
+      .select("id, parcel_id")
       .eq("id", data.disputeId)
       .maybeSingle();
     if (disputeError) throw new Error(disputeError.message);
     if (!dispute) throw new Error("Dispute not found.");
-
-    const parcel = (dispute.parcels ?? null) as unknown as {
-      district_id: string | null;
-      state_id: string | null;
-      projects?: { district_id: string | null; state_id: string | null } | null;
-    } | null;
-    // The plot itself, or the project it belongs to, must sit in this authority's area.
-    const scopeIds = [
-      parcel?.district_id,
-      parcel?.state_id,
-      parcel?.projects?.district_id,
-      parcel?.projects?.state_id,
-    ];
-    if (!scopeIds.includes(caller.jurisdictionId)) throw new Error("Forbidden");
 
     const { error } = await supabaseAdmin
       .from("disputes")

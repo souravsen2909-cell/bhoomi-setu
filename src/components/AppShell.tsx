@@ -5,8 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { landingPathForTier, type Profile, type Tier } from "@/lib/profile.functions";
-import { MANAGE_TIERS } from "@/lib/jurisdictions.functions";
-
 import { FILE_TIERS, REVIEW_TIERS } from "@/lib/disputes.functions";
 import { DASHBOARD_TIERS } from "@/lib/dashboard.functions";
 import { PROJECT_BOARD_TIERS } from "@/lib/agency.functions";
@@ -39,13 +37,6 @@ const NAV: NavItem[] = [
   { to: "/workflow", label: "Workflow", hint: "Proposals & awards", allow: WORKFLOW_TIERS },
   { to: "/my-land", label: "My land", hint: "Parcels & compensation", allow: ["landowner"] },
   { to: "/disputes", label: "Disputes", hint: "File & resolve", allow: DISPUTE_TIERS },
-
-  {
-    to: "/jurisdictions",
-    label: "Jurisdictions",
-    hint: "States & districts",
-    allow: MANAGE_TIERS as Tier[],
-  },
   { to: "/map", label: "Parcel map", hint: "Parcel status map", allow: null },
 ];
 

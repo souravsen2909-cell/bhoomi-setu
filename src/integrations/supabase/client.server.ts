@@ -90,6 +90,25 @@ class MockQueryBuilder<T = any> {
     return this;
   }
 
+  or(clause: string) {
+    const parts = clause
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    this.rows = this.rows.filter((r) => {
+      if (!r) return false;
+      return parts.some((part) => {
+        const match = part.match(/^([^.]+)\.([^.]+)\.(.+)$/);
+        if (!match) return false;
+        const [, col, op, val] = match;
+        if (op === "eq") return String(r[col]) === String(val);
+        if (op === "neq") return String(r[col]) !== String(val);
+        return false;
+      });
+    });
+    return this;
+  }
+
   order(col: string, opts?: { ascending?: boolean }) {
     const asc = opts?.ascending ?? true;
     this.rows.sort((a, b) => {

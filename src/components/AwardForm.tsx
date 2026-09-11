@@ -3,6 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
+  Bell,
+  Check,
+  Copy,
+  ExternalLink,
+  Mail,
+  MessageSquare,
+  ShieldCheck,
+} from "lucide-react";
+import {
   computeCompensation,
   createAward,
   deleteAward,
@@ -36,6 +45,19 @@ const field =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground";
 const labelClass = "block text-sm font-medium text-foreground";
 
+type IssuedDetails = {
+  email: string;
+  password?: string;
+  projectName?: string;
+  sector?: string | null;
+  requiringBody?: string | null;
+  surveyNumber?: string;
+  areaHectares?: number | null;
+  declaredAmount?: number;
+  notificationMessage?: string;
+  notifiedAt?: string;
+};
+
 export function AwardForm({ projectId }: { projectId: string }) {
   const fetchParcels = useServerFn(getAwardParcels);
   const saveAward = useServerFn(createAward);
@@ -52,7 +74,8 @@ export function AwardForm({ projectId }: { projectId: string }) {
   const [amount, setAmount] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
+  const [issued, setIssued] = useState<IssuedDetails | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
   // Compensation calculator
   const [area, setArea] = useState("");
@@ -92,7 +115,7 @@ export function AwardForm({ projectId }: { projectId: string }) {
         },
       }),
     onSuccess: (result) => {
-      toast.success("Award declared");
+      toast.success("Award declared and notification dispatched to landowner!");
       setParcelId("");
       setAmount("");
       setEmail("");
@@ -100,12 +123,65 @@ export function AwardForm({ projectId }: { projectId: string }) {
       setCircleRate("");
       setAssetValue("");
 
-      if (result.password) setIssued({ email: result.email, password: result.password });
+      setIssued({
+        email: result.email,
+        password: result.password || undefined,
+        projectName: result.projectName,
+        sector: result.sector,
+        requiringBody: result.requiringBody,
+        surveyNumber: result.surveyNumber,
+        areaHectares: result.areaHectares,
+        declaredAmount: result.declaredAmount,
+        notificationMessage: result.notificationMessage,
+        notifiedAt: result.notifiedAt,
+      });
+
       queryClient.invalidateQueries({ queryKey: ["award-parcels", projectId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["my-alerts"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  function copyIssuedDetails() {
+    if (!issued) return;
+    const text =
+      `BHOOMI SETU: PROJECT & AWARD REGISTRATION\n` +
+      `-----------------------------------------\n` +
+      `Project: ${issued.projectName ?? "Land Acquisition"}\n` +
+      `Survey Number: ${issued.surveyNumber ?? "—"}\n` +
+      `Area: ${issued.areaHectares != null ? `${issued.areaHectares} ha` : "—"}\n` +
+      `Declared Compensation: ${money(issued.declaredAmount ?? 0)}\n\n` +
+      `LANDOWNER LOGIN CREDENTIALS:\n` +
+      `Email: ${issued.email}\n` +
+      `Password: ${issued.password ?? "(Set by user/officer)"}\n` +
+      `Portal Link: ${window.location.origin}/auth\n\n` +
+      `Notification status: Registered in Bhoomi Setu register.`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedCreds(true);
+    toast.success("Credentials and project details copied!");
+    setTimeout(() => setCopiedCreds(false), 2500);
+  }
+
+  function shareViaWhatsApp() {
+    if (!issued) return;
+    const text = encodeURIComponent(
+      `Bhoomi Setu Notice: Your land (Survey No. ${issued.surveyNumber}) has been registered under project "${issued.projectName}". Declared compensation: ${money(issued.declaredAmount ?? 0)}. Login to portal with Email: ${issued.email} Password: ${issued.password ?? "your chosen password"} at ${window.location.origin}/auth`,
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank", "noopener,noreferrer");
+  }
+
+  function shareViaEmail() {
+    if (!issued) return;
+    const subject = encodeURIComponent(
+      `Bhoomi Setu: Project & Award Details for Survey No. ${issued.surveyNumber}`,
+    );
+    const body = encodeURIComponent(
+      `Dear Landowner,\n\nYour land (Survey No. ${issued.surveyNumber}, ${issued.areaHectares ?? ""} ha) is registered under project "${issued.projectName}".\n\nDeclared Compensation: ${money(issued.declaredAmount ?? 0)}\nPortal Login Email: ${issued.email}\nPassword: ${issued.password ?? "(Configured)"}\n\nSign in to track disbursement: ${window.location.origin}/auth`,
+    );
+    window.location.href = `mailto:${issued.email}?subject=${subject}&body=${body}`;
+  }
 
   return (
     <section className="mt-6 rounded-xl border border-border bg-muted/30 p-5">

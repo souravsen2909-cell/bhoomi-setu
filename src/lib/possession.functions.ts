@@ -55,13 +55,10 @@ async function loadCaller(userId: string): Promise<Caller> {
 
 async function scopedProjects(caller: Caller) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  if (!caller.jurisdictionId) return [] as { id: string; name: string }[];
   const { data, error } = await supabaseAdmin
     .from("projects")
     .select("id, name")
-    .or(
-      `district_id.eq.${caller.jurisdictionId},state_id.eq.${caller.jurisdictionId},implementing_agency_id.eq.${caller.userId}`,
-    );
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data ?? [];
 }
@@ -208,4 +205,233 @@ export const recordPossession = createServerFn({ method: "POST" })
     });
 
     return { ok: true };
+  });
+
+export type SendPossessionNoticeInput = {
+  parcelId: string;
+  projectId?: string;
+  customNote?: string;
+};
+
+export type PossessionNoticeResult = {
+  ok: true;
+  surveyNumber: string;
+  projectName: string;
+  requiringBody: string | null;
+  areaHectares: number | null;
+  takenOverDate: string;
+  landownerName: string | null;
+  landownerPhone: string | null;
+  landownerEmail: string | null;
+  noticeMessage: string;
+  sentAt: string;
+};
+
+export const getPossessionNoticePreview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { parcelId: string }) => {
+    if (!input?.parcelId) throw new Error("Select a parcel.");
+    return { parcelId: input.parcelId };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: parcel, error: pErr } = await supabaseAdmin
+      .from("parcels")
+      .select("id, project_id, survey_number, area_hectares, village, status")
+      .eq("id", data.parcelId)
+      .maybeSingle();
+    if (pErr) throw new Error(pErr.message);
+    if (!parcel) throw new Error("Parcel not found.");
+
+    const { data: project } = await supabaseAdmin
+      .from("projects")
+      .select("id, name, sector, requiring_body")
+      .eq("id", parcel.project_id)
+      .maybeSingle();
+
+    const { data: possRecord } = await supabaseAdmin
+      .from("possession_records")
+      .select("taken_over_date, status")
+      .eq("parcel_id", data.parcelId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: ownerships } = await supabaseAdmin
+      .from("parcel_ownership")
+      .select("landowner_id, landowners(id, full_name, contact_phone, user_id)")
+      .eq("parcel_id", data.parcelId);
+
+    const owners = (ownerships ?? [])
+      .map((o) => (o.landowners ?? null) as unknown as {
+        id: string;
+        full_name: string;
+        contact_phone: string | null;
+        user_id: string | null;
+      } | null)
+      .filter((o): o is NonNullable<typeof o> => o !== null);
+
+    const firstOwner = owners[0] ?? null;
+    let landownerEmail: string | null = null;
+    if (firstOwner?.user_id) {
+      const { data: u } = await supabaseAdmin
+        .from("users")
+        .select("email")
+        .eq("id", firstOwner.user_id)
+        .maybeSingle();
+      landownerEmail = u?.email ?? null;
+    }
+
+    const { data: awards } = await supabaseAdmin
+      .from("awards")
+      .select("id")
+      .eq("parcel_id", data.parcelId);
+    let disbursed = 0;
+    if (awards && awards.length > 0) {
+      const { data: comps } = await supabaseAdmin
+        .from("compensation")
+        .select("disbursed_amount")
+        .in(
+          "award_id",
+          awards.map((a) => a.id),
+        )
+        .eq("disbursement_status", "disbursed");
+      for (const c of comps ?? []) disbursed += Number(c.disbursed_amount ?? 0);
+    }
+
+    return {
+      surveyNumber: parcel.survey_number ?? "—",
+      projectName: project?.name ?? "Land Acquisition Project",
+      requiringBody: project?.requiring_body ?? "Acquiring Authority",
+      areaHectares: parcel.area_hectares,
+      takenOverDate: possRecord?.taken_over_date ?? new Date().toISOString().slice(0, 10),
+      landownerName: firstOwner?.full_name ?? null,
+      landownerPhone: firstOwner?.contact_phone ?? null,
+      landownerEmail,
+      disbursedAmount: disbursed || null,
+    };
+  });
+
+export const sendPossessionNotice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: SendPossessionNoticeInput) => {
+    if (!input?.parcelId) throw new Error("Select a parcel.");
+    return {
+      parcelId: input.parcelId,
+      projectId: input.projectId,
+      customNote: input.customNote?.trim(),
+    };
+  })
+  .handler(async ({ data, context }): Promise<PossessionNoticeResult> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const caller = await loadCaller(context.userId);
+
+    const { data: parcel, error: pErr } = await supabaseAdmin
+      .from("parcels")
+      .select("id, project_id, survey_number, area_hectares, village, status")
+      .eq("id", data.parcelId)
+      .maybeSingle();
+    if (pErr) throw new Error(pErr.message);
+    if (!parcel) throw new Error("Parcel not found.");
+
+    const { data: project } = await supabaseAdmin
+      .from("projects")
+      .select("id, name, sector, requiring_body")
+      .eq("id", parcel.project_id)
+      .maybeSingle();
+
+    const { data: possRecord } = await supabaseAdmin
+      .from("possession_records")
+      .select("taken_over_date, status")
+      .eq("parcel_id", data.parcelId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const takenDate = possRecord?.taken_over_date || new Date().toISOString().slice(0, 10);
+
+    const { data: ownerships } = await supabaseAdmin
+      .from("parcel_ownership")
+      .select("landowner_id, landowners(id, full_name, contact_phone, user_id)")
+      .eq("parcel_id", data.parcelId);
+
+    const owners = (ownerships ?? [])
+      .map((o) => (o.landowners ?? null) as unknown as {
+        id: string;
+        full_name: string;
+        contact_phone: string | null;
+        user_id: string | null;
+      } | null)
+      .filter((o): o is NonNullable<typeof o> => o !== null);
+
+    const firstOwner = owners[0] ?? null;
+    let landownerEmail: string | null = null;
+    if (firstOwner?.user_id) {
+      const { data: u } = await supabaseAdmin
+        .from("users")
+        .select("email")
+        .eq("id", firstOwner.user_id)
+        .maybeSingle();
+      landownerEmail = u?.email ?? null;
+    }
+
+    const projectName = project?.name ?? "Land Acquisition Project";
+    const requiringBody = project?.requiring_body ?? "Government Acquiring Agency";
+    const surveyNo = parcel.survey_number ?? "N/A";
+    const areaStr =
+      parcel.area_hectares != null ? `${parcel.area_hectares} hectares` : "registered area";
+
+    const officialNoticeText =
+      `OFFICIAL NOTICE: POSSESSION OF LAND TAKEN OVER\n` +
+      `-----------------------------------------\n` +
+      `Dear ${firstOwner?.full_name ?? "Landowner"},\n\n` +
+      `This is to formally notify you that physical possession of your land parcel has been taken over by ${requiringBody} for the "${projectName}" project.\n\n` +
+      `• Survey Number: ${surveyNo}\n` +
+      `• Area: ${areaStr}\n` +
+      `• Project: ${projectName} (${project?.sector ?? "Infrastructure"})\n` +
+      `• Requiring Authority: ${requiringBody}\n` +
+      `• Date of Handover/Takeover: ${takenDate}\n` +
+      `• Status: Possession Formally Recorded in Bhoomi Setu Register\n` +
+      (data.customNote ? `• Additional Remarks: ${data.customNote}\n` : "") +
+      `\nCompensation proceedings and records have been entered in the register. You may review your official ledger and download acquisition records anytime by signing into your Bhoomi Setu portal account.\n\n` +
+      `Issued by: Office of the Implementing Agency / District Competent Authority.`;
+
+    const now = new Date().toISOString();
+
+    for (const owner of owners) {
+      if (owner.user_id) {
+        await supabaseAdmin.from("alerts").insert({
+          recipient_id: owner.user_id,
+          channel: "in_app",
+          message: `Official Notice: Formal possession of your land (Survey No. ${surveyNo}, ${areaStr}) under project "${projectName}" was taken over on ${takenDate}. Sign in to My Land to see updated status.`,
+          related_entity_type: "possession",
+          related_entity_id: data.parcelId,
+          sent_at: now,
+        });
+      }
+    }
+
+    await supabaseAdmin.from("alerts").insert({
+      recipient_id: caller.userId,
+      channel: "in_app",
+      message: `Land possession takeover notice sent to ${firstOwner?.full_name ?? "landowner"} (Survey No. ${surveyNo} · ${projectName}).`,
+      related_entity_type: "possession",
+      related_entity_id: data.parcelId,
+      sent_at: now,
+    });
+
+    return {
+      ok: true,
+      surveyNumber: surveyNo,
+      projectName,
+      requiringBody,
+      areaHectares: parcel.area_hectares,
+      takenOverDate: takenDate,
+      landownerName: firstOwner?.full_name ?? null,
+      landownerPhone: firstOwner?.contact_phone ?? null,
+      landownerEmail,
+      noticeMessage: officialNoticeText,
+      sentAt: now,
+    };
   });

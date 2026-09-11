@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -69,7 +69,17 @@ function AgencyProjectsPage() {
     enabled: allowed,
   });
 
-  const projects = query.data ?? [];
+  const [selectedState, setSelectedState] = useState<string>("all");
+
+  const rawProjects = query.data ?? [];
+  const stateOptions = Array.from(
+    new Set(rawProjects.map((p) => p.state_name).filter(Boolean)),
+  ) as string[];
+
+  const projects =
+    selectedState === "all"
+      ? rawProjects
+      : rawProjects.filter((p) => p.state_name === selectedState);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
@@ -85,16 +95,16 @@ function AgencyProjectsPage() {
         }
         title={
           isDistrict
-            ? "Projects in my district"
+            ? "Acquisition projects"
             : isState || isCentral
               ? "Projects in India"
               : "My projects"
         }
         description={
           isDistrict
-            ? "Approved projects for your district. Open one to draw its plots and list survey numbers and areas."
+            ? "Approved projects for parcel mapping, survey numbers, awards, and compensation execution."
             : isState
-              ? "View-only record of every project in your state — plots, land taken over, issues raised and money paid."
+              ? "Record of acquisition projects across India and in your state — plots, land taken over, issues raised and money paid."
               : isCentral
                 ? "View-only record of every project in the country. Open one to see its plots, issues raised and money paid, and to attach official documents."
                 : "Every project you have raised. Open one to add parcels, declare amounts, set landowner logins and mark payments."
@@ -110,6 +120,40 @@ function AgencyProjectsPage() {
           )
         }
       />
+
+      {(isState || isCentral || isDistrict) && stateOptions.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-medium text-muted-foreground">Filter by State:</span>
+          <button
+            type="button"
+            onClick={() => setSelectedState("all")}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              selectedState === "all"
+                ? "bg-primary text-primary-foreground"
+                : "border border-border bg-muted/40 text-foreground hover:bg-muted"
+            }`}
+          >
+            All States ({rawProjects.length})
+          </button>
+          {stateOptions.map((st) => {
+            const count = rawProjects.filter((p) => p.state_name === st).length;
+            return (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setSelectedState(st)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  selectedState === st
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-muted/40 text-foreground hover:bg-muted"
+                }`}
+              >
+                {st} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {profileLoading || (allowed && query.isLoading) ? (
@@ -135,6 +179,23 @@ function AgencyProjectsPage() {
   );
 }
 
+function stageBadgeStyle(stage: string): string {
+  const lower = stage.toLowerCase();
+  if (lower.includes("approved")) {
+    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  }
+  if (lower.includes("central ministry") || lower.includes("scrutiny")) {
+    return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+  }
+  if (lower.includes("verification") || lower.includes("state")) {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  if (lower.includes("return") || lower.includes("reject")) {
+    return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300";
+  }
+  return "border-border text-muted-foreground";
+}
+
 function ProjectCard({ project }: { project: AgencyProjectCard }) {
   const progress =
     project.area_notified > 0
@@ -156,7 +217,11 @@ function ProjectCard({ project }: { project: AgencyProjectCard }) {
               .join(" · ") || "—"}
           </p>
         </div>
-        <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+        <span
+          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${stageBadgeStyle(
+            project.stage,
+          )}`}
+        >
           {project.stage}
         </span>
       </div>

@@ -88,14 +88,39 @@ export const createProject = createServerFn({ method: "POST" })
 
     // Every new project enters the approval pipeline as a submitted proposal:
     // state government verifies it, then the central ministry approves it.
-    const { error: proposalError } = await supabaseAdmin.from("proposals").insert({
-      project_id: inserted.id,
-      submitted_by: context.userId,
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-      purpose: `${data.sector} acquisition for ${data.requiring_body}`,
-    });
+    const { data: proposal, error: proposalError } = await supabaseAdmin
+      .from("proposals")
+      .insert({
+        project_id: inserted.id,
+        submitted_by: context.userId,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+        purpose: `${data.sector} acquisition for ${data.requiring_body}`,
+      })
+      .select("id")
+      .single();
     if (proposalError) throw new Error(proposalError.message);
+
+    await supabaseAdmin.from("workflow_stages").insert({
+      entity_type: "proposal",
+      entity_id: proposal.id,
+      stage_name: "submitted",
+      actor_role: role?.tier ?? "implementing_agency",
+      actor_id: context.userId,
+      status: "completed",
+      entered_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+    });
+
+    // Send in-app notification confirming project creation with all details
+    await supabaseAdmin.from("alerts").insert({
+      recipient_id: context.userId,
+      channel: "in_app",
+      message: `Project created with complete details: "${data.name}" (${data.sector} sector for ${data.requiring_body}). Estimated area: ${data.estimated_area_ha ?? "—"} ha. Proposal submitted for state and central verification.`,
+      related_entity_type: "project",
+      related_entity_id: inserted.id,
+      sent_at: new Date().toISOString(),
+    });
 
     return { id: inserted.id };
   });

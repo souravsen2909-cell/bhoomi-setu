@@ -35,33 +35,30 @@ async function loadDistrictCaller(userId: string): Promise<Caller> {
   if (error) throw new Error(error.message);
   const role = (data?.roles ?? null) as unknown as { tier: Tier } | null;
   const tier = role?.tier ?? "public";
-  if (!data || tier !== "district_authority") throw new Error("Forbidden");
+  if (
+    !data ||
+    (tier !== "district_authority" && tier !== "central_ministry" && tier !== "state_government")
+  ) {
+    throw new Error("Forbidden");
+  }
   return { userId, tier, jurisdictionId: data.jurisdiction_id ?? null };
-}
-
-async function scopedProjectIds(caller: Caller): Promise<string[]> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  if (!caller.jurisdictionId) return [];
-  const { data, error } = await supabaseAdmin
-    .from("projects")
-    .select("id")
-    .or(`district_id.eq.${caller.jurisdictionId},state_id.eq.${caller.jurisdictionId}`);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((p) => p.id);
 }
 
 /** Parcels may only be drawn once the ministry has approved the proposal. */
 export async function approvedProjectIds(caller: Caller): Promise<string[]> {
-  const scoped = await scopedProjectIds(caller);
-  if (scoped.length === 0) return [];
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("proposals")
-    .select("project_id")
-    .eq("status", "approved")
-    .in("project_id", scoped);
-  if (error) throw new Error(error.message);
-  return [...new Set((data ?? []).map((p) => p.project_id))];
+  const [propRes, projRes] = await Promise.all([
+    supabaseAdmin.from("proposals").select("project_id").eq("status", "approved"),
+    supabaseAdmin.from("projects").select("id").eq("status", "approved"),
+  ]);
+  if (propRes.error) throw new Error(propRes.error.message);
+  if (projRes.error) throw new Error(projRes.error.message);
+
+  const ids = new Set([
+    ...(propRes.data ?? []).map((p) => p.project_id),
+    ...(projRes.data ?? []).map((p) => p.id),
+  ]);
+  return [...ids];
 }
 
 export const getParcelDrawOptions = createServerFn({ method: "GET" })

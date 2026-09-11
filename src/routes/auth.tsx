@@ -32,7 +32,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 const ROLES = [
-  { title: "Ministry & state", copy: "Programme dashboards, projects and jurisdictions." },
+  { title: "Ministry & state", copy: "Programme dashboards, projects and approval workflows." },
   { title: "District & agency", copy: "Proposals, awards, parcels and possession." },
   { title: "Landowners", copy: "Your parcels, compensation and disputes." },
 ];

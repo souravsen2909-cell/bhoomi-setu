@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { lazy, Suspense } from "react";
+import { toast } from "sonner";
 import { useProfile } from "@/hooks/useProfile";
 import { landingPathForTier, type Tier } from "@/lib/profile.functions";
 import { EmptyState, ErrorState, LoadingCards } from "@/components/states";
@@ -61,7 +62,7 @@ export const Route = createFileRoute("/_authenticated/workflow")({
       {
         property: "og:description",
         content:
-          "Review acquisition proposals in your jurisdiction, advance them through the approval sequence or return them for correction.",
+          "Review acquisition proposals, advance them through the approval sequence or return them for correction.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -94,35 +95,107 @@ function WorkflowPage() {
   const returnFn = useServerFn(returnProposalForCorrection);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["workflow-proposals"] });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["workflow-proposals"] });
+    queryClient.invalidateQueries({ queryKey: ["agency-projects"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+  };
 
   const advance = useMutation({
     mutationFn: (proposalId: string) => advanceFn({ data: { proposalId } }),
     onSuccess: () => {
       setActionError(null);
+      toast.success("Case successfully advanced to the next workflow stage!");
       invalidate();
     },
-    onError: (e: Error) => setActionError(e.message),
+    onError: (e: Error) => {
+      setActionError(e.message);
+      toast.error(`Failed to advance: ${e.message}`);
+    },
   });
 
   const returnForCorrection = useMutation({
     mutationFn: (vars: { proposalId: string; remarks: string }) => returnFn({ data: vars }),
     onSuccess: () => {
       setActionError(null);
+      toast.info("Case returned for correction.");
       invalidate();
     },
-    onError: (e: Error) => setActionError(e.message),
+    onError: (e: Error) => {
+      setActionError(e.message);
+      toast.error(`Failed to return: ${e.message}`);
+    },
   });
 
-  const proposals = query.data ?? [];
+  const [selectedState, setSelectedState] = useState<string>("all");
+
+  const rawProposals = query.data ?? [];
+  const stateOptions = Array.from(
+    new Set(rawProposals.map((p) => p.state_name).filter(Boolean)),
+  ) as string[];
+
+  const proposals =
+    selectedState === "all"
+      ? rawProposals
+      : rawProposals.filter((p) => p.state_name === selectedState);
+
+  const pendingStateVerification = rawProposals.filter((p) => p.status === "submitted").length;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <PageHeader
         eyebrow="Case management"
         title="Workflow"
-        description="Acquisition proposals in your jurisdiction. Move a case to the next stage, or send it back with a note for correction."
+        description="Acquisition proposals across India. Move a case to the next stage, or send it back with a note for correction."
       />
+
+      {tier === "state_government" && (
+        <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                State Government Verification Queue
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-foreground">
+                {pendingStateVerification > 0
+                  ? `${pendingStateVerification} project proposal${pendingStateVerification === 1 ? "" : "s"} awaiting state verification`
+                  : "All submitted project proposals are verified"}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                As a State Government Officer, you verify new acquisition proposals raised by
+                agencies (Step 2). Once verified, click &ldquo;Advance Stage&rdquo; to send them to
+                the Central Ministry for approval.
+              </p>
+            </div>
+            <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+              {pendingStateVerification} to verify
+            </span>
+          </div>
+        </div>
+      )}
+
+      {tier === "district_authority" && (
+        <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                District Execution Queue (Step 4)
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-foreground">
+                Centrally Approved Acquisition Projects Ready for Mapping
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                As a District Authority Officer (CALA), you map parcel boundaries, issue survey
+                numbers, declare compensation awards, and handle landowner objections for all
+                centrally approved projects.
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+              {rawProposals.filter((p) => p.status === "approved").length} Approved
+            </span>
+          </div>
+        </div>
+      )}
 
       <section className="mt-6 surface p-4 sm:p-6">
         <p className="eyebrow">How a case moves</p>
@@ -136,6 +209,43 @@ function WorkflowPage() {
           ))}
         </ol>
       </section>
+
+      {(tier === "state_government" ||
+        tier === "central_ministry" ||
+        tier === "district_authority") &&
+        stateOptions.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-medium text-muted-foreground">Filter by State:</span>
+            <button
+              type="button"
+              onClick={() => setSelectedState("all")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                selectedState === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-muted/40 text-foreground hover:bg-muted"
+              }`}
+            >
+              All States ({rawProposals.length})
+            </button>
+            {stateOptions.map((st) => {
+              const count = rawProposals.filter((p) => p.state_name === st).length;
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setSelectedState(st)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    selectedState === st
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-muted/40 text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {st} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
 
       {tier === "district_authority" && (
         <Suspense
@@ -165,8 +275,8 @@ function WorkflowPage() {
           <ErrorState message={(query.error as Error).message} />
         ) : proposals.length === 0 ? (
           <EmptyState
-            title="No cases assigned to you yet"
-            description="Acquisition proposals for your jurisdiction will appear here as soon as they are submitted."
+            title="No cases in this queue yet"
+            description="Acquisition proposals will appear here as soon as they are submitted."
           />
         ) : (
           proposals.map((p) => (
@@ -207,7 +317,19 @@ function ProposalCard({
     <article className="surface p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-medium text-card-foreground">{proposal.project_name}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-medium text-card-foreground">{proposal.project_name}</h2>
+            {proposal.state_name && (
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                {proposal.state_name}
+              </span>
+            )}
+            {proposal.district_name && (
+              <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {proposal.district_name}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Submitted {formatDate(proposal.submitted_at ?? proposal.created_at)} ·{" "}
             {proposal.parcel_count} parcel{proposal.parcel_count === 1 ? "" : "s"} mapped

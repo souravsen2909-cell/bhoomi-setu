@@ -136,7 +136,13 @@ export default function DrawNewParcel({ lockedProjectId }: { lockedProjectId?: s
                 onChange={(e) => setProjectId(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
               >
-                <option value="">{isLoading ? "Loading projects…" : "Select a project"}</option>
+                <option value="">
+                  {isLoading
+                    ? "Loading approved projects…"
+                    : projects.length === 0
+                      ? "No approved projects yet (projects must be approved by Central Ministry first)"
+                      : `Select an approved project (${projects.length} available)`}
+                </option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}

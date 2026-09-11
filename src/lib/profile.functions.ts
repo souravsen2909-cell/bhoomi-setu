@@ -17,6 +17,8 @@ export type Profile = {
   role_name: string;
   tier: Tier;
   is_active: boolean;
+  jurisdiction_id: string | null;
+  jurisdiction_name: string | null;
 };
 
 export const landingPathForTier = (tier: Tier): string => {
@@ -41,12 +43,22 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("users")
-      .select("id, full_name, email, role_id, is_active, roles(name, tier)")
+      .select("id, full_name, email, role_id, is_active, jurisdiction_id, roles(name, tier)")
       .eq("id", context.userId)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
     if (!data) return null;
+
+    let jurisdictionName: string | null = null;
+    if (data.jurisdiction_id) {
+      const { data: jur } = await supabaseAdmin
+        .from("jurisdictions")
+        .select("name")
+        .eq("id", data.jurisdiction_id)
+        .maybeSingle();
+      jurisdictionName = jur?.name ?? null;
+    }
 
     const role = data.roles as unknown as { name: string; tier: Tier } | null;
     return {
@@ -57,5 +69,22 @@ export const getMyProfile = createServerFn({ method: "GET" })
       role_name: role?.name ?? "Unknown role",
       tier: role?.tier ?? "public",
       is_active: data.is_active ?? true,
+      jurisdiction_id: data.jurisdiction_id ?? null,
+      jurisdiction_name: jurisdictionName,
     };
+  });
+
+export const updateMyJurisdiction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { jurisdictionId: string | null }) => {
+    return { jurisdictionId: input?.jurisdictionId ?? null };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("users")
+      .update({ jurisdiction_id: data.jurisdictionId })
+      .eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

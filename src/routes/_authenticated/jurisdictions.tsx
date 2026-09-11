@@ -37,9 +37,8 @@ function JurisdictionsPage() {
   const allowed = !!tier && MANAGE_TIERS.includes(tier);
 
   useEffect(() => {
-    if (!tier || allowed) return;
-    navigate({ to: landingPathForTier(tier), replace: true });
-  }, [tier, allowed, navigate]);
+    navigate({ to: "/projects", replace: true });
+  }, [navigate]);
 
   const { all, states, isLoading: listLoading } = useJurisdictions(allowed);
   const queryClient = useQueryClient();
